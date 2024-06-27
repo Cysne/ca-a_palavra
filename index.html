@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <title>Jogo de Caça-Palavras</title>
+  </head>
+  <body>
+    <h1>Jogo de Caça-Palavras</h1>
+    <h2 id="faseAtual">Fase:</h2>
+    <ul id="listaPalavras"></ul>
+    <div id="grade"></div>
+
+    <p>Pontuação: <span id="score">0/1000</span></p>
+    <!-- Adicione estes elementos no seu HTML -->
+    <div id="cronometro">Tempo: 0 segundos</div>
+    <div id="pontuacao">Pontos: 0</div>
+    <button id="btnSubmit" onclick="onSubmit()" disabled>Submit</button>
+
+    <script src="script.js"></script>
+  </body>
+</html>
