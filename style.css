@@ -1,0 +1,77 @@
+
+@font-face {
+    font-family: 'pearce';
+    src: url("./pearce.ttf");
+  }
+
+
+
+.celula {
+    border: 1px solid #ccc;
+    width: 30px;
+    height: 30px;
+    text-align: center;
+    /* border-radius: 15px; */
+  }
+  /* @keyframes mudancaDeCor {
+    0% { background-color: #FC785E; }
+    33% { background-color: #FFDB80; }
+    66% { background-color: #91DEE7; }
+    100% { background-color: #FC785E; }
+  }
+  
+  .celula-selecionada {
+    animation: mudancaDeCor 3s infinite;
+  } */
+
+  *{
+    box-sizing: border-box;
+}
+h1{
+    text-align: center;
+    font-size: x-large;
+    text-decoration: underline;
+}
+
+table{
+    font-family: 'system-ui', '-apple-system', "Segoe UI", 'Roboto', "Helvetica Neue", "Noto Sans", "Liberation Sans", 'Arial', 'sans-serif', "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    font-weight: 800;
+    background-color: white;
+    height: 60vh;
+    width: 100%;
+}
+table, td, th{
+    text-align: center;
+    border: 1px solid black;
+    border-collapse: collapse;
+    padding:5px;
+    cursor: pointer;
+
+}
+
+.wrapper{
+    width: 100%;
+}
+
+.button input{
+    width: 100%;
+    padding:10px 20px;
+    border:1px solid #ccc;
+    font-weight:600;
+}
+
+.palavra-encontrada{
+    text-decoration: line-through;
+    color: #808080;
+}
+
+@media only screen and (min-width: 768px) {
+    /* For desktop: */
+    .col-6 {width: 50%;margin: auto;}
+  }
+
+  table.center {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
