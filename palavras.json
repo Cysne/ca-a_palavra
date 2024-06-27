@@ -1,0 +1,40 @@
+{
+  "palavras": [
+    "Investimento",
+    "Poupança",
+    "Empréstimo",
+    "Orçamento",
+    "Mercado",
+    "Crédito",
+    "Renda"
+  ],
+  "IPTU":[
+    "Imposto",
+    "Propriedade",
+    "Territorial",
+    "Predial",
+    "Urbano",
+    "Alíquota",
+    "Arrecadação"
+  ],
+  "ISS":[
+    "Municipal",
+    "Serviço",
+    "Contribuinte",
+    "Arrecadação",
+    "Cadastros",
+    "NotaFiscal",
+    "Regulamentação"
+  ],
+  "ITBI":[
+    "Transmissão",
+    "Isenção",
+    "Cálculo",
+    "Regulamentação",
+    "Registro",
+    "Prazo",
+    "Imóvel"
+
+  ]
+
+}
