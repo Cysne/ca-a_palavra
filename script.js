@@ -1,7 +1,20 @@
-const DIMENSAO = 12; // Definindo dimensões da grade
-let letterPosition = []; // Array para armazenar as posições das palavras
-let cores = ['#FC785E', '#FFDB80', '#91DEE7'];
+
+//variaveis globais
+const DIMENSAO = 12;
+let letterPosition = [];
+let cores = ['#91DEE7'];
 let indiceCorAtual = 0;
+let selecionando = false;
+let touchStarted = false;
+let ultimaCelula = null;
+let score = 0;
+let inicioDoJogo;
+let contadorDePalavrasEncontradas = 0;
+const totalDePalavrasPorFase = [5, 6, 7];
+const fases = ["palavras", "IPTU", "ISS", "ITBI"];
+let indiceFaseAtual = 0;
+
+//Funções de Inicialização e Carregamento
 async function carregarPalavras(fase) {
   try {
     const response = await fetch('palavras.json');
@@ -9,17 +22,88 @@ async function carregarPalavras(fase) {
       throw new Error('Falha ao carregar o arquivo palavras.json');
     }
     const data = await response.json();
-    // Verifica se a fase existe no JSON
     if (!data || !data[fase] || !Array.isArray(data[fase])) {
       throw new Error(`Formato inválido ou fase '${fase}' não encontrada no arquivo palavras.json`);
     }
-    // Converte todas as palavras para maiúsculas antes de retornar
     return data[fase].map(palavra => palavra.toUpperCase());
   } catch (error) {
     console.error(`Erro ao carregar o arquivo palavras.json para a fase '${fase}':`, error);
-    return []; // Retornar um array vazio em caso de erro
+    return [];
   }
 }
+
+async function iniciarJogo() {
+  try {
+    const faseAtual = fases[indiceFaseAtual];
+    const palavras = await carregarPalavras(faseAtual);
+    if (palavras.length === 0) {
+      console.error('Nenhuma palavra carregada.');
+      return;
+    }
+    iniciarCronometro();
+
+    atualizarViewFaseEListaPalavras(faseAtual, palavras);
+
+    const grade = criarGradeVazia();
+    posicionarPalavras(grade, palavras);
+    preencherEspacosVazios(grade);
+    desenharGrade(grade);
+
+    const tableCells = document.querySelectorAll('table tbody tr td');
+    let palavrasEncontradas = new Set();
+
+    tableCells.forEach(cell => {
+      cell.addEventListener('click', () => {
+        const id = cell.id;
+        if (onlyLetterOfTargetWords(id, letterPosition)) {
+          const stringValue = addOrRemoveValue(id, cell);
+          const foundMatch = checkWordInWordSearch(stringValue, letterPosition);
+
+          if (foundMatch[0]) {
+            const elementFound = document.getElementById(foundMatch[1]);
+            elementFound.innerHTML = `<strike>${elementFound.innerText}</strike>`;
+            letterPosition[foundMatch[1]] = '';
+            palavrasEncontradas.add(foundMatch[1]);
+
+            if (palavrasEncontradas.size === palavras.length) {
+              console.log("Fase concluída!");
+              indiceFaseAtual += 1;
+              if (indiceFaseAtual < fases.length) {
+                iniciarJogo();
+              } else {
+                console.log("Parabéns! Você completou todas as fases!");
+              }
+            }
+          }
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Erro ao iniciar o jogo:', error);
+  }
+}
+
+async function carregarNovaListaDePalavrasParaFaseAtual() {
+  const faseAtual = fases[indiceFaseAtual];
+  const palavras = await carregarPalavras(faseAtual);
+  if (palavras.length === 0) {
+    console.error('Nenhuma palavra carregada para a nova fase.');
+    return;
+  }
+  atualizarViewFaseEListaPalavras(faseAtual, palavras);
+
+  const grade = criarGradeVazia();
+  posicionarPalavras(grade, palavras);
+  preencherEspacosVazios(grade);
+  desenharGrade(grade);
+}
+
+function iniciarCronometro() {
+  inicioDoJogo = new Date();
+}
+
+
+//Funções de Manipulação da Grade
 
 function criarGradeVazia() {
   return Array.from({ length: DIMENSAO }, () => Array(DIMENSAO).fill('-'));
@@ -45,9 +129,9 @@ function inserirPalavra(grade, palavra, linha, coluna, deltaLinha, deltaColuna) 
 
 function posicionarPalavras(grade, palavras) {
   const direcoes = [
-    { deltaLinha: 0, deltaColuna: 1 }, // Horizontal
-    { deltaLinha: 1, deltaColuna: 0 }, // Vertical
-    { deltaLinha: 1, deltaColuna: 1 }, // Diagonal
+    { deltaLinha: 0, deltaColuna: 1 }, 
+    { deltaLinha: 1, deltaColuna: 0 }, 
+    { deltaLinha: 1, deltaColuna: 1 }, 
   ];
 
   palavras.forEach(palavra => {
@@ -77,7 +161,7 @@ function preencherEspacosVazios(grade) {
 
 function desenharGrade(grade) {
   const container = document.getElementById('grade');
-  container.innerHTML = ''; // Limpa a grade anterior
+  container.innerHTML = ''; 
   const tabela = document.createElement('table');
   grade.forEach((linha, rowIndex) => {
     const tr = document.createElement('tr');
@@ -87,11 +171,9 @@ function desenharGrade(grade) {
       td.classList.add('celula');
       td.id = `r${rowIndex}c${colIndex}`;
 
-      // Evento de início de seleção
       td.addEventListener('mousedown', iniciarSelecao);
       td.addEventListener('touchstart', iniciarSelecao);
 
-      // Evento de continuação de seleção
       td.addEventListener('mouseenter', continuarSelecao);
       td.addEventListener('touchmove', continuarSelecao);
 
@@ -101,95 +183,110 @@ function desenharGrade(grade) {
   });
   container.appendChild(tabela);
 
-  // Evento de finalização de seleção
   document.addEventListener('mouseup', finalizarSelecao);
   document.addEventListener('touchend', finalizarSelecao);
 }
 
-function iniciarSelecao(event) {
-  event.preventDefault(); // Previne a seleção de texto ou outros comportamentos padrão
-  selecionando = true;
-  toggleSelecao(this); // Seleciona a célula onde o evento começou
-}
+//Funções de Manipulação de Seleção
 
+function iniciarSelecao(event) {
+  event.preventDefault(); 
+  selecionando = true;
+  toggleSelecao(this); 
+}
 
 function toggleSelecao(celula) {
   if (celula.classList.contains('celula-selecionada')) {
-    celula.classList.remove('celula-selecionada'); // Remove a seleção se já estiver selecionada
-    celula.style.backgroundColor = ''; // Remove a cor de fundo
+    celula.classList.remove('celula-selecionada'); 
+    celula.style.backgroundColor = ''; 
   } else {
-    celula.classList.add('celula-selecionada'); // Adiciona a seleção se não estiver selecionada
-    celula.style.backgroundColor = cores[indiceCorAtual]; // Aplica a cor baseada no índice atual
-    indiceCorAtual = (indiceCorAtual + 1) % cores.length; // Avança o índice circularmente
+    celula.classList.add('celula-selecionada');
+    // Convertendo a cor hexadecimal para RGBA com opacidade de 0.5 para meio transparente
+    celula.style.backgroundColor = 'rgba(145, 222, 231, 0.5)'; // 50% de opacidade
+    indiceCorAtual = (indiceCorAtual + 1) % cores.length; 
   }
 }
-
 
 function continuarSelecao(event) {
   if (!selecionando) return;
   event.preventDefault();
 
   let element = null;
+  let x, y;
+
   if (event.touches) {
     const touch = event.touches[0];
-    element = document.elementFromPoint(touch.clientX, touch.clientY);
+    x = touch.clientX;
+    y = touch.clientY;
+    element = document.elementFromPoint(x, y);
   } else {
+    x = event.clientX;
+    y = event.clientY;
     element = event.target;
   }
 
-  // Verifica se a célula é diferente da última processada e se é uma célula válida
   if (element && element !== ultimaCelula && element.classList.contains('celula')) {
-    requestAnimationFrame(() => {
-      toggleSelecao(element);
-    });
-    ultimaCelula = element; // Atualiza a última célula processada
-  }
-}
-let ultimaCelula = null;
-let selecionando = false;
-let touchStarted = false; // Variável de controle para eventos de toque
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
 
-document.querySelectorAll('.celula').forEach(celula => {
-  celula.addEventListener('touchstart', handleSelecaoInicial);
-  celula.addEventListener('mousedown', (event) => {
-    // Verifica se um evento de toque foi iniciado recentemente
-    if (!touchStarted) {
-      handleSelecaoInicial(event);
-    }
-  });
-});
+    const maxDistance = 12; 
 
-function handleSelecaoInicial(event) {
-  if (!selecionando || event.type === 'touchstart') {
-    selecionando = true;
-    event.preventDefault();
-    let element = event.target;
-    if (element && element.classList.contains('celula')) {
+    if (distance <= maxDistance) {
       requestAnimationFrame(() => {
         toggleSelecao(element);
       });
       ultimaCelula = element;
     }
-    // Reseta a variável de controle após um curto delay
-    if (event.type === 'touchstart') {
-      touchStarted = true;
-      setTimeout(() => {
-        touchStarted = false;
-      }, 200); // Delay pode ser ajustado conforme necessário
-    }
   }
 }
-// Função de debounce (pode ser ajustada conforme necessário)
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
+
+function handleSelecaoInicial(event) {
+  event.preventDefault(); 
+  selecionando = true; 
+  let element = event.target;
+
+  if (event.type === 'touchstart') {
+    touchStarted = true; 
+    setTimeout(() => {
+      touchStarted = false; 
+    }, 200);
+  }
+  toggleSelecao(element); 
+}
+
+function handleSelecaoContinua(event) {
+  if (!selecionando) return;
+  let element = null;
+  let x, y;
+
+  if (event.touches) {
+    const touch = event.touches[0];
+    x = touch.clientX;
+    y = touch.clientY;
+    element = document.elementFromPoint(x, y);
+  } else {
+    x = event.clientX;
+    y = event.clientY;
+    element = event.target;
+  }
+
+  if (element && element !== ultimaCelula && element.classList.contains('celula')) {
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+
+    const maxDistance = 12; 
+
+    if (distance <= maxDistance) {
+      requestAnimationFrame(() => {
+        toggleSelecao(element);
+      });
+      ultimaCelula = element;
+    }
+  }
 }
 
 function finalizarSelecao() {
@@ -197,133 +294,79 @@ function finalizarSelecao() {
 }
 
 
+//Funções de Atualização da Interface do Usuário
+
+function atualizarViewFaseEListaPalavras(faseAtual, palavras) {
+  const faseContainer = document.getElementById('fase-atual');
+  const listaPalavrasContainer = document.getElementById('lista-palavras');
+
+  if (faseContainer) {
+    faseContainer.innerHTML = `<p>Fase Atual: ${faseAtual}</p>`;
+  }
+
+  if (listaPalavrasContainer) {
+    listaPalavrasContainer.innerHTML = '';
+    palavras.forEach(palavra => {
+      const item = document.createElement('p');
+      item.id = palavra;
+      item.textContent = palavra;
+      listaPalavrasContainer.appendChild(item);
+    });
+  }
+}
 
 function atualizarListaPalavras(palavras) {
-  const lista = document.getElementById('lista-palavras'); // Certifique-se de ter um elemento com este ID na sua página
-  lista.innerHTML = ''; // Limpa a lista atual
-  palavras.forEach(palavra => {
-    const item = document.createElement('li');
-    item.textContent = palavra;
-    item.id = `palavra-${palavra}`; // Cria um ID único para cada palavra
-    lista.appendChild(item);
-  });
-}
-
-let score = 0; // Inicializa a pontuação
-
-// Função para atualizar a pontuação na view
-function atualizarPontuacao(pontos) {
-  score += pontos; // Atualiza a pontuação
-  const elementoPontuacao = document.getElementById('pontuacao');
-  elementoPontuacao.textContent = `Pontos: ${score}`; // Atualiza o texto do elemento
-}
-
-// Modifique esta função para marcar palavras encontradas
-function verificarPalavraEncontrada() {
-  // Sua lógica para verificar se uma palavra foi encontrada
-  // Supondo que você tenha uma variável `palavraEncontrada`
-  const palavraEncontrada = 'exemplo'; // Exemplo, substitua pela sua lógica
-  const item = document.getElementById(`palavra-${palavraEncontrada}`);
-  if (item) {
-    item.style.textDecoration = 'line-through'; // Marca a palavra como encontrada
-    item.style.color = 'green'; // Muda a cor para verde
-  }
-}
-
-function iniciarCronometro() {
-  tempoInicio = new Date();
-  const cronometro = document.getElementById('cronometro');
-  function atualizarCronometro() {
-    const agora = new Date();
-    const decorrido = agora - tempoInicio;
-    const segundos = Math.floor(decorrido / 1000);
-    cronometro.textContent = `Tempo: ${segundos} segundos`;
-    requestAnimationFrame(atualizarCronometro);
-  }
-  requestAnimationFrame(atualizarCronometro);
-}
-
-
-
-const fases = ["palavras", "IPTU", "ISS", "ITBI"];
-let indiceFaseAtual = 0; // Inicia na primeira fase
-
-
-async function iniciarJogo() {
-  try {
-    const faseAtual = fases[indiceFaseAtual];
-    const palavras = await carregarPalavras(faseAtual);
-    if (palavras.length === 0) {
-      console.error('Nenhuma palavra carregada.');
-      return;
-    }
-
-    // Atualiza a view com a fase atual e as palavras
-    atualizarViewFaseEListaPalavras(faseAtual, palavras);
-
-    const grade = criarGradeVazia();
-    posicionarPalavras(grade, palavras);
-    preencherEspacosVazios(grade);
-    desenharGrade(grade);
-
-    const tableCells = document.querySelectorAll('table tbody tr td');
-    let palavrasEncontradas = new Set(); // Armazena as palavras encontradas
-
-    tableCells.forEach(cell => {
-      cell.addEventListener('click', () => {
-        const id = cell.id;
-        if (onlyLetterOfTargetWords(id, letterPosition)) {
-          const stringValue = addOrRemoveValue(id, cell);
-          const foundMatch = checkWordInWordSearch(stringValue, letterPosition);
-
-          if (foundMatch[0]) {
-            const elementFound = document.getElementById(foundMatch[1]);
-            elementFound.innerHTML = `<strike>${elementFound.innerText}</strike>`;
-            letterPosition[foundMatch[1]] = '';
-            palavrasEncontradas.add(foundMatch[1]); // Adiciona a palavra encontrada ao conjunto
-
-            // Verifica se todas as palavras foram encontradas
-            if (palavrasEncontradas.size === palavras.length) {
-              console.log("Fase concluída!");
-              indiceFaseAtual += 1; // Avança para a próxima fase
-              if (indiceFaseAtual < fases.length) {
-                iniciarJogo(); // Inicia a próxima fase
-              } else {
-                console.log("Parabéns! Você completou todas as fases!");
-                // Implemente qualquer lógica de conclusão do jogo aqui
-              }
-            }
-          }
-        }
-      });
+  const listaPalavrasContainer = document.getElementById('lista-palavras');
+  if (listaPalavrasContainer) {
+    listaPalavrasContainer.innerHTML = '';
+    palavras.forEach(palavra => {
+      const item = document.createElement('p');
+      item.id = palavra;
+      item.textContent = palavra;
+      listaPalavrasContainer.appendChild(item);
     });
-  } catch (error) {
-    console.error('Erro ao iniciar o jogo:', error);
   }
 }
-function atualizarViewFaseEListaPalavras(faseAtual, palavras) {
-  // Atualiza o elemento que mostra a fase atual
-  const elementoFaseAtual = document.getElementById('faseAtual');
-  elementoFaseAtual.innerText = `Fase: ${faseAtual.toUpperCase()}`;
 
-  // Limpa a lista de palavras anterior
-  const listaPalavrasElement = document.getElementById('listaPalavras');
-  listaPalavrasElement.innerHTML = '';
-
-  // Adiciona as palavras da fase atual à lista
-  palavras.forEach(palavra => {
-    const item = document.createElement('li');
-    item.innerText = palavra;
-    listaPalavrasElement.appendChild(item);
-  });
+function atualizarPontuacao(pontos) {
+  const pontuacaoContainer = document.getElementById('pontuacao');
+  if (pontuacaoContainer) {
+    pontuacaoContainer.textContent = `Pontuação: ${pontos}`;
+  }
 }
 
-function onSubmit() {
-  // Processa as células selecionadas, verifica se as palavras estão corretas, atualiza a pontuação, etc.
-  console.log('Submit clicado');
-  // Exemplo: Desabilitar o botão de submit após o clique
-  document.getElementById('btnSubmit').disabled = true;
-  // Adicione aqui a lógica para processar as seleções
+
+//Funções de Lógica do Jogo
+function palavraEncontrada() {
+  contadorDePalavrasEncontradas += 1;
+  if (contadorDePalavrasEncontradas === totalDePalavrasPorFase[indiceFaseAtual]) {
+    avancarParaProximaFase();
+  }
+}
+
+function avancarParaProximaFase() {
+  indiceFaseAtual += 1;
+  if (indiceFaseAtual < fases.length) {
+    carregarNovaListaDePalavrasParaFaseAtual();
+  } else {
+    alert("Parabéns! Você completou todas as fases!");
+  }
+}
+
+function calcularPontuacao(tempoDecorrido) {
+  const pontos = Math.max(1000 - tempoDecorrido, 0);
+  atualizarPontuacao(pontos);
+  return pontos;
+}
+
+//Funções Auxiliares
+
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
 }
 
 function onlyLetterOfTargetWords(id, letterPosition) {
@@ -331,19 +374,25 @@ function onlyLetterOfTargetWords(id, letterPosition) {
 }
 
 function checkWordInWordSearch(stringValue, letterPosition) {
-  let stringFound = false;
-  let indexFound = 0;
-  const sortedValue = stringValue.sort().join(',');
+  let foundMatch = false;
+  let matchedWord = '';
 
   for (let i = 0; i < letterPosition.length; i++) {
-    const positionSort = letterPosition[i].split(',').sort().join(',');
-    if (sortedValue === positionSort) {
-      stringFound = true;
-      indexFound = i;
+    if (letterPosition[i] === stringValue) {
+      foundMatch = true;
+      matchedWord = letterPosition[i];
       break;
     }
   }
-  return [stringFound, indexFound];
+
+  return [foundMatch, matchedWord];
 }
 
+//Event Listeners e Inicialização
+document.querySelectorAll('.celula').forEach(celula => {
+  celula.addEventListener('mousedown', handleSelecaoInicial);
+  celula.addEventListener('touchstart', handleSelecaoInicial);
+});
+
 document.addEventListener('DOMContentLoaded', iniciarJogo);
+
